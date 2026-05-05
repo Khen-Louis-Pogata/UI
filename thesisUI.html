@@ -1,204 +1,415 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Building Occupancy Monitor</title>
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Traffic Monitor Pro - Grove AI</title>
     <style>
-        :root {
-            --bg-color: #0f172a;
-            --card-bg: #1e293b;
-            --primary-text: #f8fafc;
-            --accent-entry: #22c55e;
-            --accent-exit: #ef4444;
-            --secondary-text: #94a3b8;
-        }
+      :root {
+        --bg-color: #0a0a0c;
+        --card-bg: #16161a;
+        --accent: #00f2ff;
+        --text-main: #e2e2e2;
+        --text-dim: #888888;
+        --danger: #ff4d4d;
+        --success: #00ff88;
+      }
 
-        body {
-            font-family: 'Inter', system-ui, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--primary-text);
-            margin: 0;
-            display: flex;
-            justify-content: center;
-            padding: 20px;
-        }
+      body {
+        font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        background-color: var(--bg-color);
+        color: var(--text-main);
+        margin: 0;
+        display: flex;
+        height: 100vh;
+        overflow: hidden;
+      }
 
-        .container {
-            width: 100%;
-            max-width: 600px;
-        }
+      /* Sidebar */
+      #sidebar {
+        width: 320px;
+        background: var(--card-bg);
+        border-right: 1px solid #2d2d35;
+        display: flex;
+        flex-direction: column;
+        padding: 20px;
+        box-shadow: 10px 0 30px rgba(0,0,0,0.5);
+        z-index: 10;
+        overflow-y: auto;
+      }
 
-        header {
-            text-align: center;
-            margin-bottom: 30px;
-        }
+      h1 { font-size: 1.1rem; margin: 0 0 20px 0; color: var(--accent); letter-spacing: 1px; text-transform: uppercase; font-weight: 700; }
 
-        .main-display {
-            background: var(--card-bg);
-            padding: 40px;
-            border-radius: 24px;
-            text-align: center;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
-            margin-bottom: 20px;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
+      /* Stats Grid */
+      .stats-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-bottom: 25px;
+      }
 
-        .main-display h2 {
-            margin: 0;
-            font-size: 1rem;
-            color: var(--secondary-text);
-            text-transform: uppercase;
-            letter-spacing: 2px;
-        }
+      .stat-box {
+        background: #1f1f27;
+        padding: 15px;
+        border-radius: 8px;
+        border: 1px solid #2d2d35;
+        text-align: center;
+      }
 
-        #current-occupancy {
-            font-size: 7rem;
-            font-weight: 800;
-            margin: 10px 0;
-            font-variant-numeric: tabular-nums;
-        }
+      .stat-box.full { grid-column: span 2; border-color: var(--accent); }
+      .stat-label { display: block; font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; margin-bottom: 5px; }
+      .stat-value { font-size: 1.8rem; font-weight: bold; font-family: 'Courier New', monospace; }
 
-        .stats-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin-bottom: 20px;
-        }
+      /* Controls */
+      .control-group { margin-bottom: 18px; }
+      label { display: block; font-size: 0.75rem; color: var(--text-dim); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+      
+      select, input[type="text"] {
+        width: 100%;
+        background: #0a0a0c;
+        border: 1px solid #3d3d4d;
+        color: white;
+        padding: 10px;
+        border-radius: 5px;
+        outline: none;
+        box-sizing: border-box;
+      }
 
-        .stat-card {
-            background: var(--card-bg);
-            padding: 20px;
-            border-radius: 16px;
-            text-align: center;
-            border: 1px solid rgba(255,255,255,0.05);
-        }
+      button {
+        width: 100%;
+        padding: 12px;
+        border-radius: 5px;
+        border: none;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-transform: uppercase;
+        margin-bottom: 10px;
+      }
 
-        .stat-card h3 {
-            font-size: 0.8rem;
-            margin: 0;
-            color: var(--secondary-text);
-        }
+      #toggle-stream { background: var(--accent); color: #000; }
+      #toggle-stream.loading { background: #555; pointer-events: none; opacity: 0.6; }
+      #reset-count { background: transparent; border: 1px solid #3d3d4d; color: var(--text-dim); }
+      #reset-count:hover { border-color: var(--danger); color: var(--danger); }
 
-        .stat-card p {
-            font-size: 2.5rem;
-            font-weight: bold;
-            margin: 5px 0 0 0;
-        }
+      /* Main Viewport */
+      #viewport {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 40px;
+        position: relative;
+        background: radial-gradient(circle, #1a1a2e 0%, #0a0a0c 100%);
+      }
 
-        .log-container {
-            background: var(--card-bg);
-            border-radius: 16px;
-            padding: 20px;
-            max-height: 300px;
-            overflow-y: auto;
-            border: 1px solid rgba(255,255,255,0.05);
-        }
+      .canvas-container {
+        position: relative;
+        border: 2px solid #2d2d35;
+        border-radius: 4px;
+        overflow: hidden;
+        box-shadow: 0 0 50px rgba(0, 242, 255, 0.15);
+      }
 
-        .log-item {
-            padding: 12px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-            display: flex;
-            justify-content: space-between;
-            font-size: 0.9rem;
-        }
+      #preview { max-width: 100%; height: auto; background: #000; display: block; }
+      .hidden { display: none !important; }
+      input[type="range"] { width: 100%; accent-color: var(--accent); cursor: pointer; }
 
-        .tag {
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 0.7rem;
-            font-weight: bold;
-        }
-
-        .tag-entry { background: var(--accent-entry); color: white; }
-        .tag-exit { background: var(--accent-exit); color: white; }
+      /* Checkbox Styling */
+      .check-row { display: flex; align-items: center; gap: 10px; font-size: 0.8rem; }
+      .check-row input { width: auto; }
     </style>
-</head>
-<body>
+  </head>
+  <body>
 
-<div class="container">
-    <header>
-        <h1>Occupancy Traffic Feed</h1>
-        <p id="clock" style="color: var(--secondary-text);"></p>
-    </header>
-
-    <div class="main-display">
-        <h2>Live Occupancy</h2>
-        <div id="current-occupancy">0</div>
-    </div>
-
-    <div class="stats-grid">
-        <div class="stat-card">
-            <h3>Total In</h3>
-            <p id="total-in" style="color: var(--accent-entry);">0</p>
+    <nav id="sidebar">
+      <h1>Vision Monitor Pro</h1>
+      
+      <div class="stats-grid">
+        <div class="stat-box full">
+          <span class="stat-label">Active Subjects</span>
+          <span id="active-count" class="stat-value" style="color: var(--accent)">0</span>
         </div>
-        <div class="stat-card">
-            <h3>Total Out</h3>
-            <p id="total-out" style="color: var(--accent-exit);">0</p>
+        <div class="stat-box">
+          <span class="stat-label">Up Count</span>
+          <span id="up-count" class="stat-value" style="color: var(--success)">0</span>
         </div>
-    </div>
+        <div class="stat-box">
+          <span class="stat-label">Down Count</span>
+          <span id="down-count" class="stat-value" style="color: var(--danger)">0</span>
+        </div>
+      </div>
 
-    <div class="log-container" id="activity-log">
-        <div style="color: var(--secondary-text); text-align: center; padding: 20px;">System Ready. Listening for data...</div>
-    </div>
-</div>
+      <div class="control-group">
+        <button id="toggle-stream">Start System</button>
+        <button id="reset-count">Reset Analytics</button>
+      </div>
 
-<script>
-    let occupancy = 0;
-    let totalIn = 0;
-    let totalOut = 0;
+      <hr style="border: 0; border-top: 1px solid #2d2d35; margin-bottom: 20px;">
 
-    function updateDisplay() {
-        document.getElementById('current-occupancy').innerText = occupancy;
-        document.getElementById('total-in').innerText = totalIn;
-        document.getElementById('total-out').innerText = totalOut;
-    }
+      <div class="control-group">
+        <label for="framesize">Sensor Resolution</label>
+        <select id="framesize">
+          <option value="0">240x240 (Fast)</option>
+          <option value="1">480x480 (Medium)</option>
+          <option value="2">VGA 640x480 (Detail)</option>
+        </select>
+      </div>
 
-    function addLog(type) {
-        const log = document.getElementById('activity-log');
-        // Clear initial message on first action
-        if (totalIn + totalOut === 1) log.innerHTML = ''; 
+      <div class="control-group">
+        <label for="orientation">Stream Orientation</label>
+        <select id="orientation">
+          <option value="0">Default</option>
+          <option value="1">90° Clockwise</option>
+          <option value="2">180° Flip</option>
+          <option value="3">270° Counter-CW</option>
+        </select>
+      </div>
 
-        const now = new Date();
-        const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        
-        const item = document.createElement('div');
-        item.className = 'log-item';
-        const tagClass = type === 'ENTRY' ? 'tag-entry' : 'tag-exit';
-        
-        item.innerHTML = `
-            <span><span class="tag ${tagClass}">${type}</span> detected</span>
-            <span style="color: var(--secondary-text)">${timeStr}</span>
-        `;
-        
-        log.prepend(item);
-    }
+      <div class="control-group">
+        <label>Detection Threshold</label>
+        <input type="range" id="score" min="10" max="100" value="60">
+      </div>
 
-    /**
-     * TRIGGER FUNCTIONS
-     * Use these functions to update the UI from your external script or sensor.
-     */
-    function triggerEntry() {
-        occupancy++;
-        totalIn++;
-        addLog('ENTRY');
-        updateDisplay();
-    }
+      <div class="control-group">
+        <div class="check-row">
+          <input type="checkbox" id="sample-only">
+          <label style="margin:0">Hardware Sample Only</label>
+        </div>
+      </div>
 
-    function triggerExit() {
-        if (occupancy > 0) {
-            occupancy--;
-            totalOut++;
-            addLog('EXIT');
-            updateDisplay();
+      <div class="control-group">
+        <div class="check-row">
+          <input type="checkbox" id="differed-by-results">
+          <label style="margin:0">Differed by Results</label>
+        </div>
+      </div>
+
+      <div class="control-group" style="margin-top: auto;">
+        <label>Action Command</label>
+        <div style="display: flex; gap: 5px;">
+          <input id="action" type="text" placeholder="Set action...">
+          <button id="set-action" style="width: auto; margin:0; padding: 5px 15px; background: #3d3d4d; color: white;">Set</button>
+        </div>
+      </div>
+
+      <!-- Hidden Elements for Logic Compatibility -->
+      <input type="range" id="iou" class="hidden" value="45">
+      <button id="save-still" class="hidden"></button>
+      <a id="save-still-object" class="hidden"></a>
+    </nav>
+
+    <main id="viewport">
+      <div id="stream-container" class="canvas-container hidden">
+        <canvas id="preview"></canvas>
+      </div>
+      <div id="offline-msg" style="color: var(--text-dim); text-align: center;">
+        <div style="font-size: 3rem; margin-bottom: 10px; filter: grayscale(1); opacity: 0.5;">📡</div>
+        <p style="letter-spacing: 2px; font-weight: bold;">AI SYSTEM OFFLINE</p>
+        <p style="font-size: 0.8rem; opacity: 0.7;">Click START SYSTEM to begin processing</p>
+      </div>
+    </main>
+
+    <script>
+      /* --- CORE CONSTANTS & SETTINGS --- */
+      const COLORS = ['#FF0000', '#FFA500', '#FFFF00', '#32CD32', '#006400', '#4169E1', '#0000FF', '#FF1493', '#FFC0CB', '#800080', '#FFD700', '#9ACD32', '#ADFF2F', '#00FFFF', '#1E90FF', '#FF4500', '#CD853F', '#FF8C00', '#FF6347', '#8B4513', '#FF69B4', '#FF00FF', '#BA55D3', '#9400D3', '#8A2BE2', '#4682B4', '#87CEEB', '#00CED1', '#20B2AA', '#FFB6C1', '#696969', '#808080', '#A9A9A9', '#C0C0C0', '#D3D3D3', '#FFFAFA', '#F0FFF0', '#F5F5DC', '#FFE4C4', '#FFDAB9', '#EEE8AA', '#F0E68C', '#BDB76B', '#FFD700', '#F5DEB3', '#D2B48C', '#DEB887', '#BC8F8F', '#F4A460', '#DAA520', '#CD853F', '#A52A2A', '#8B4513', '#D2691E', '#B22222', '#FF6347', '#FF4500', '#FF8C00', '#FFA07A', '#FA8072', '#E9967A', '#FF69B4', '#FF1493', '#DB7093', '#C71585'];
+      const Mode = { SAMPLE: 'SAMPLE', INVOKE: 'INVOKE' };
+      const baseHost = document.location.origin;
+      let isStreaming = false;
+      let workingMode = Mode.INVOKE;
+      let modelInfo = null;
+      let streamPreviewController = null;
+
+      /* --- INITIALIZATION --- */
+      document.addEventListener('DOMContentLoaded', async function () {
+        const streamButton = document.getElementById('toggle-stream');
+        const viewContainer = document.getElementById('stream-container');
+        const offlineMsg = document.getElementById('offline-msg');
+        const streamPreview = document.getElementById('preview');
+        const streamPreviewCtx = streamPreview.getContext('2d');
+        const streamPreviewFrame = new Image();
+
+        const resolutionSelect = document.getElementById('framesize');
+        const orientationSelect = document.getElementById('orientation');
+        const setActionButton = document.getElementById('set-action');
+        const scoreSlider = document.getElementById('score');
+        const iouSlider = document.getElementById('iou');
+        const sampleOnly = document.getElementById('sample-only');
+        const differedByResults = document.getElementById('differed-by-results');
+        const downCountEl = document.getElementById('down-count');
+        const upCountEl = document.getElementById('up-count');
+        const activeCountEl = document.getElementById('active-count');
+        const resetCountButton = document.getElementById('reset-count');
+
+        // Logic Helpers
+        const disable = (el) => { el.classList.add('disabled'); el.disabled = true; };
+        const enable = (el) => { el.classList.remove('disabled'); el.disabled = false; };
+        const show = (el) => el.classList.remove('hidden');
+        const hide = (el) => el.classList.add('hidden');
+
+        /* --- HARDWARE COMMUNICATION --- */
+        async function initSettings() {
+          let fetchResolution = async () => {
+            const cmd = btoa('SENSOR?');
+            try {
+              let res = await fetch(`${baseHost}/command?base64=${cmd}`);
+              const data = await res.json();
+              if (data.code == 0) resolutionSelect.value = data.data.opt_id;
+            } catch (e) { console.error('Resolution fetch failed'); }
+          };
+          fetchResolution();
         }
-    }
+        initSettings();
 
-    // Clock display
-    setInterval(() => {
-        document.getElementById('clock').innerText = new Date().toLocaleString();
-    }, 1000);
-</script>
+        /* --- STREAM HANDLING --- */
+        const stopStream = async () => {
+          hide(viewContainer);
+          show(offlineMsg);
+          if (streamPreviewController) streamPreviewController.abort();
+          isStreaming = false;
+          
+          const cmd = btoa('BREAK');
+          await fetch(`${baseHost}/command?base64=${cmd}`);
+          
+          streamButton.innerHTML = 'Start System';
+          streamButton.classList.remove('loading');
+          enable(resolutionSelect);
+          enable(orientationSelect);
+        };
 
-</body>
+        const startStream = async () => {
+          disable(resolutionSelect);
+          disable(orientationSelect);
+          streamButton.classList.add('loading');
+          streamButton.innerHTML = 'Initializing...';
+
+          // Set Config
+          const sensorId = 1;
+          const optId = resolutionSelect.value;
+          const rotId = orientationSelect.value;
+          const optCfg = (((1 << rotId) & 0b1110) << 11) | optId;
+          const configCmd = btoa(`SENSOR=${sensorId},1,${optCfg}`);
+          
+          try {
+            await fetch(`${baseHost}/command?base64=${configCmd}`);
+            
+            if (workingMode === Mode.SAMPLE) {
+              const startCmd = btoa('SAMPLE=-1');
+              await fetch(`${baseHost}/command?base64=${startCmd}`);
+            } else {
+              const diff = differedByResults.checked ? 1 : 0;
+              const startCmd = btoa(`INVOKE=-1,${diff},0`);
+              await fetch(`${baseHost}/command?base64=${startCmd}`);
+            }
+
+            isStreaming = true;
+            streamButton.innerHTML = 'Stop System';
+            streamButton.classList.remove('loading');
+            hide(offlineMsg);
+            show(viewContainer);
+            
+            streamPreviewController = new AbortController();
+            startReadableStream(`${baseHost}:8080/stream/result`, streamPreviewController.signal);
+          } catch (e) {
+            alert("System failed to initialize.");
+            stopStream();
+          }
+        };
+
+        const startReadableStream = async (url, signal) => {
+          const response = await fetch(url, { cache: 'no-cache', signal });
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = '';
+          
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            
+            buffer += decoder.decode(value);
+            let lines = buffer.split('\r\n');
+            buffer = lines.pop();
+            
+            for (let line of lines) {
+              if (line.trim()) {
+                try {
+                  const data = JSON.parse(line);
+                  processFrame(data);
+                } catch(e) {}
+              }
+            }
+          }
+        };
+
+        const processFrame = (res) => {
+          if (res.code !== 0) return;
+          const frameData = res.data.image;
+          streamPreviewFrame.src = `data:image/jpeg;base64,${frameData}`;
+          
+          streamPreviewFrame.onload = () => {
+            streamPreview.width = streamPreviewFrame.width;
+            streamPreview.height = streamPreviewFrame.height;
+            streamPreviewCtx.drawImage(streamPreviewFrame, 0, 0);
+            
+            // Draw Center Line (as in original)
+            const centerY = streamPreview.height / 2;
+            streamPreviewCtx.strokeStyle = 'rgba(0, 242, 255, 0.5)';
+            streamPreviewCtx.lineWidth = 2;
+            streamPreviewCtx.beginPath();
+            streamPreviewCtx.moveTo(0, centerY);
+            streamPreviewCtx.lineTo(streamPreview.width, centerY);
+            streamPreviewCtx.stroke();
+
+            // Counts
+            if(res.data.people_count) {
+              downCountEl.innerText = res.data.people_count.down;
+              upCountEl.innerText = res.data.people_count.up;
+              activeCountEl.innerText = res.data.people_count.active;
+            }
+
+            // Bounding Boxes
+            if(res.data.boxes) visualizeBoxes(res.data.boxes, streamPreviewCtx);
+          };
+        };
+
+        /* --- VISUALIZATION --- */
+        function visualizeBoxes(boxes, ctx) {
+          boxes.forEach(rect => {
+            const [x, y, w, h, score, target] = rect;
+            const id = rect[6] !== undefined ? rect[6] : -1;
+            const color = COLORS[(target + (id === -1 ? 0 : id)) % COLORS.length];
+            
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.strokeRect(x - w/2, y - h/2, w, h);
+            
+            ctx.fillStyle = color;
+            ctx.font = '10px Arial';
+            ctx.fillText(`${target}: ${score}%`, x - w/2, y - h/2 - 5);
+          });
+        }
+
+        /* --- EVENT BINDING --- */
+        streamButton.onclick = () => isStreaming ? stopStream() : startStream();
+        
+        resetCountButton.onclick = async () => {
+          await fetch(`${baseHost}/count/reset`);
+          upCountEl.innerText = '0';
+          downCountEl.innerText = '0';
+          activeCountEl.innerText = '0';
+        };
+
+        setActionButton.onclick = async () => {
+          const val = document.getElementById('action').value;
+          const cmd = btoa(`ACTION="${val}"`);
+          await fetch(`${baseHost}/command?base64=${cmd}`);
+        };
+
+        sampleOnly.onchange = () => {
+          workingMode = sampleOnly.checked ? Mode.SAMPLE : Mode.INVOKE;
+        };
+      });
+    </script>
+  </body>
 </html>
