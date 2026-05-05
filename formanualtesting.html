@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Building Occupancy Tracker</title>
+    <style>
+        :root {
+            --bg-color: #f0f2f5;
+            --card-bg: #ffffff;
+            --primary-text: #1c1e21;
+            --accent-entry: #28a745;
+            --accent-exit: #dc3545;
+            --secondary-text: #606770;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--primary-text);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 600px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .main-display {
+            background: var(--card-bg);
+            padding: 40px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .main-display h2 {
+            margin: 0;
+            font-size: 1.2rem;
+            color: var(--secondary-text);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        #current-occupancy {
+            font-size: 6rem;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+        }
+
+        .stat-card h3 {
+            font-size: 0.9rem;
+            margin: 0;
+            color: var(--secondary-text);
+        }
+
+        .stat-card p {
+            font-size: 2rem;
+            font-weight: bold;
+            margin: 5px 0 0 0;
+        }
+
+        .controls {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        button {
+            flex: 1;
+            padding: 20px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: transform 0.1s, opacity 0.2s;
+            color: white;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        .btn-enter { background-color: var(--accent-entry); }
+        .btn-exit { background-color: var(--accent-exit); }
+
+        .log-container {
+            background: var(--card-bg);
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+            max-height: 250px;
+            overflow-y: auto;
+        }
+
+        .log-item {
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+        }
+
+        .reset-container {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .btn-reset {
+            background: none;
+            color: var(--secondary-text);
+            font-size: 0.8rem;
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Building Clearance Monitor</h1>
+        <p id="clock"></p>
+    </header>
+
+    <div class="main-display">
+        <h2>Current Occupancy</h2>
+        <div id="current-occupancy">0</div>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <h3>Total In</h3>
+            <p id="total-in" style="color: var(--accent-entry);">0</p>
+        </div>
+        <div class="stat-card">
+            <h3>Total Out</h3>
+            <p id="total-out" style="color: var(--accent-exit);">0</p>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button class="btn-enter" onclick="handleEntry()">ENTER (+1)</button>
+        <button class="btn-exit" onclick="handleExit()">EXIT (-1)</button>
+    </div>
+
+    <div class="log-container" id="activity-log">
+        <div style="color: gray; text-align: center; padding: 20px;">No activity logged yet.</div>
+    </div>
+
+    <div class="reset-container">
+        <button class="btn-reset" onclick="resetData()">Reset Daily Totals</button>
+    </div>
+</div>
+
+<script>
+    let occupancy = 0;
+    let totalIn = 0;
+    let totalOut = 0;
+
+    function updateDisplay() {
+        document.getElementById('current-occupancy').innerText = occupancy;
+        document.getElementById('total-in').innerText = totalIn;
+        document.getElementById('total-out').innerText = totalOut;
+    }
+
+    function addLog(type) {
+        const log = document.getElementById('activity-log');
+        if (totalIn + totalOut === 1) log.innerHTML = ''; // Clear "No activity" text
+
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        
+        const item = document.createElement('div');
+        item.className = 'log-item';
+        item.innerHTML = `<span><strong>${type}</strong></span> <span>${timeStr}</span>`;
+        
+        log.prepend(item);
+    }
+
+    function handleEntry() {
+        occupancy++;
+        totalIn++;
+        addLog('ENTRY');
+        updateDisplay();
+    }
+
+    function handleExit() {
+        if (occupancy > 0) {
+            occupancy--;
+            totalOut++;
+            addLog('EXIT');
+            updateDisplay();
+        } else {
+            alert("Occupancy cannot be less than zero.");
+        }
+    }
+
+    function resetData() {
+        if (confirm("Are you sure you want to reset all counts?")) {
+            occupancy = 0;
+            totalIn = 0;
+            totalOut = 0;
+            document.getElementById('activity-log').innerHTML = '<div style="color: gray; text-align: center; padding: 20px;">No activity logged yet.</div>';
+            updateDisplay();
+        }
+    }
+
+    // Simple Clock
+    setInterval(() => {
+        document.getElementById('clock').innerText = new Date().toLocaleString();
+    }, 1000);
+</script>
+
+</body>
+</html>
